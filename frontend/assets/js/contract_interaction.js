@@ -11,81 +11,79 @@ let contract = null;
 
 function addLog(msg, color = "text-gray-400") {
     const logDiv = document.getElementById('log');
-    if (logDiv) {
-        const timestamp = new Date().toLocaleTimeString([], { hour12: false });
-        logDiv.innerHTML += `<p class="${color}">[${timestamp}] > ${msg}</p>`;
-        logDiv.scrollTop = logDiv.scrollHeight;
-    }
+    if (!logDiv) return;
+    const p = document.createElement('p');
+    p.className = color;
+    p.innerText = `[${new Date().toLocaleTimeString()}] > ${msg}`;
+    logDiv.appendChild(p);
+    logDiv.scrollTop = logDiv.scrollHeight;
 }
 
-async function toggleWallet() {
-    const btn = document.getElementById('connectBtn');
-    
-    // DISCONNECT LOGIC
+// Fixed Disconnect Logic
+function doDisconnect() {
+    signer = null;
+    provider = null;
+    contract = null;
+    document.getElementById('connectBtn').innerText = "CONNECT WALLET";
+    document.getElementById('statusDot').classList.replace('bg-green-500', 'bg-red-500');
+    document.getElementById('myScore').innerText = "0";
+    document.getElementById('myXP').innerText = "0";
+    document.getElementById('myBadge').innerText = "UNRANKED";
+    addLog("Wallet Disconnected.", "text-yellow-500");
+}
+
+async function handleConnection() {
     if (signer) {
-        signer = null; provider = null; contract = null;
-        btn.innerText = "CONNECT WALLET";
-        const dot = document.getElementById('statusDot');
-        dot.classList.replace('bg-green-500', 'bg-red-500');
-        dot.classList.add('animate-pulse');
-        addLog("Disconnected.", "text-yellow-500");
+        doDisconnect();
         return;
     }
 
-    // CONNECT LOGIC
-    if (typeof window.ethereum === 'undefined') {
+    if (!window.ethereum) {
         addLog("MetaMask not found.", "text-red-500");
         return;
     }
 
     try {
+        addLog("Connecting...", "text-cyan-400");
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         provider = new ethers.BrowserProvider(window.ethereum);
         signer = await provider.getSigner();
-        const address = await signer.getAddress();
+        const addr = await signer.getAddress();
         
-        btn.innerText = `${address.substring(0, 6)}...${address.substring(38)}`;
-        const dot = document.getElementById('statusDot');
-        dot.classList.replace('bg-red-500', 'bg-green-500');
-        dot.classList.remove('animate-pulse');
-
+        document.getElementById('connectBtn').innerText = `${addr.substring(0,6)}...${addr.substring(38)}`;
+        document.getElementById('statusDot').classList.replace('bg-red-500', 'bg-green-500');
+        
         contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-        addLog("Connected to " + address.substring(0, 8), "text-green-400");
-        updateStats();
+        addLog("Wallet Linked.", "text-green-500");
+        fetchData(addr);
     } catch (err) {
-        addLog("Auth failed.", "text-red-500");
+        addLog("Auth Denied.", "text-red-500");
     }
 }
 
-async function updateStats() {
-    if (!contract || !signer) return;
+async function fetchData(addr) {
+    if (!contract) return;
     try {
-        const address = await signer.getAddress();
-        const stats = await contract.get_my_stats(address);
-        document.getElementById('myScore').innerText = stats[0].toString();
-        document.getElementById('myXP').innerText = stats[1].toString();
+        const stats = await contract.get_my_stats(addr);
+        document.getElementById('myScore').innerText = stats[0];
+        document.getElementById('myXP').innerText = stats[1];
         document.getElementById('myBadge').innerText = stats[2] || "ROOKIE";
-        
-        const world = await contract.get_world_champion();
-        document.getElementById('topScore').innerText = world[1].toString();
-        document.getElementById('topAddress').innerText = world[0].toLowerCase();
-    } catch (e) { console.error("Stats sync error"); }
+    } catch (e) { addLog("Sync Error.", "text-red-400"); }
 }
 
-async function submitToChain() {
+async function submitScore() {
     const score = document.getElementById('currentSessionScore').innerText;
     if (!contract || score === "0") {
-        addLog("Connect wallet & play first!", "text-pink-500");
+        addLog("Connect Wallet & Play first.", "text-pink-500");
         return;
     }
     try {
-        addLog("Sending to GenLayer...", "text-yellow-400");
+        addLog("Broadcasting Score...", "text-yellow-400");
         const tx = await contract.race_and_compete(score);
         await tx.wait();
-        addLog("Blockchain Updated!", "text-green-500");
-        updateStats();
-    } catch (err) { addLog("TX Failed.", "text-red-500"); }
+        addLog("Transaction Success!", "text-green-500");
+    } catch (e) { addLog("TX Failed.", "text-red-500"); }
 }
 
-document.getElementById('connectBtn').addEventListener('click', toggleWallet);
-document.getElementById('submitBtn').addEventListener('click', submitToChain);
+document.getElementById('connectBtn').addEventListener('click', handleConnection);
+document.getElementById('submitBtn').addEventListener('click', submitScore);

@@ -1,71 +1,50 @@
-const canvas = document.getElementById('gameCanvas'); // Fixed ID to match HTML
+const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-canvas.width = 600;
-canvas.height = 400;
 
-let gameState = {
-    isRacing: false,
+let game = {
+    active: false,
     score: 0,
     speed: 0,
-    roadOffset: 0,
     playerX: 300,
-    targetX: 300
+    targetX: 300,
+    roadOff: 0
 };
 
-// UI Elements
-const startBtn = document.getElementById('start-btn');
-const overlay = document.getElementById('msg-overlay');
-const scoreDisplay = document.getElementById('currentSessionScore');
-
-if (startBtn) {
-    startBtn.addEventListener('click', () => {
-        gameState.isRacing = true;
-        gameState.score = 0;
-        gameState.speed = 100;
-        overlay.style.display = 'none';
-        addLog("Engine Initialized. Racing...", "text-cyan-400");
-    });
-}
-
-window.addEventListener('keydown', e => {
-    if (e.key === 'a' || e.key === 'ArrowLeft') gameState.targetX -= 40;
-    if (e.key === 'd' || e.key === 'ArrowRight') gameState.targetX += 40;
+document.getElementById('start-btn').addEventListener('click', () => {
+    game.active = true;
+    game.score = 0;
+    game.speed = 2;
+    document.getElementById('msg-overlay').style.display = 'none';
 });
 
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    gameState.playerX += (gameState.targetX - gameState.playerX) * 0.1;
+window.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft') game.targetX -= 50;
+    if (e.key === 'ArrowRight') game.targetX += 50;
+});
 
-    // Background
-    ctx.fillStyle = "#151518"; ctx.fillRect(0, 0, 600, 400); 
-    ctx.fillStyle = "#0d3d0d"; ctx.fillRect(0, 200, 600, 200); 
+function loop() {
+    ctx.clearRect(0, 0, 600, 400);
+    game.playerX += (game.targetX - game.playerX) * 0.1;
 
-    // Draw Road
-    ctx.fillStyle = "#222";
-    ctx.beginPath();
-    ctx.moveTo(280, 200); ctx.lineTo(320, 200);
-    ctx.lineTo(550, 400); ctx.lineTo(50, 400); ctx.fill();
+    // Environment
+    ctx.fillStyle = "#111"; ctx.fillRect(0, 0, 600, 400);
+    ctx.fillStyle = "#222"; ctx.beginPath();
+    ctx.moveTo(280, 200); ctx.lineTo(320, 200); ctx.lineTo(600, 400); ctx.lineTo(0, 400); ctx.fill();
 
-    if (gameState.isRacing) {
-        gameState.roadOffset += gameState.speed / 5;
-        if (gameState.roadOffset > 40) gameState.roadOffset = 0;
-        
+    if (game.active) {
+        game.roadOff += 5;
+        if (game.roadOff > 40) game.roadOff = 0;
         ctx.strokeStyle = "#fff"; ctx.setLineDash([20, 20]);
-        ctx.lineDashOffset = -gameState.roadOffset;
+        ctx.lineDashOffset = -game.roadOff;
         ctx.beginPath(); ctx.moveTo(300, 200); ctx.lineTo(300, 400); ctx.stroke();
-
-        gameState.score += 1;
-        if (scoreDisplay) scoreDisplay.innerText = gameState.score;
-        if (gameState.speed < 220) gameState.speed += 0.05;
+        
+        game.score++;
+        document.getElementById('currentSessionScore').innerText = game.score;
     }
 
-    // Draw Car
-    ctx.fillStyle = "#ff0055";
-    ctx.shadowBlur = 15; ctx.shadowColor = "#ff0055";
-    ctx.fillRect(gameState.playerX - 25, 330, 50, 30);
-    ctx.shadowBlur = 0;
-
-    requestAnimationFrame(draw);
+    // Car
+    ctx.fillStyle = "#0ff";
+    ctx.fillRect(game.playerX - 20, 340, 40, 25);
+    requestAnimationFrame(loop);
 }
-draw();
+loop();
