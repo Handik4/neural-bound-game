@@ -18,9 +18,17 @@ function addLog(msg, color = "text-gray-400") {
 }
 
 /**
- * Validates and Connects to MetaMask
+ * Handles Connect and Disconnect Logic
  */
-async function connect() {
+async function handleWalletAction() {
+    const connectBtn = document.getElementById('connectBtn');
+    
+    // If already connected, perform Disconnect
+    if (signer) {
+        disconnect();
+        return;
+    }
+
     if (typeof window.ethereum === 'undefined') {
         addLog("Critical: MetaMask not detected!", "text-red-500");
         alert("Please install MetaMask extension to play.");
@@ -30,7 +38,6 @@ async function connect() {
     try {
         addLog("Initializing secure handshake...", "text-yellow-400");
         
-        // Force MetaMask to open the account selection screen
         const accounts = await window.ethereum.request({ 
             method: 'wallet_requestPermissions', 
             params: [{ eth_accounts: {} }] 
@@ -43,7 +50,7 @@ async function connect() {
             
             // Update UI
             const displayAddr = `${address.substring(0, 6)}...${address.substring(38)}`;
-            document.getElementById('connectBtn').innerText = displayAddr;
+            connectBtn.innerText = displayAddr;
             
             const dot = document.getElementById('statusDot');
             dot.classList.replace('bg-red-500', 'bg-green-500');
@@ -62,6 +69,27 @@ async function connect() {
             console.error(error);
         }
     }
+}
+
+/**
+ * Resets Wallet State in UI
+ */
+function disconnect() {
+    signer = null;
+    provider = null;
+    contract = null;
+
+    // Reset UI Elements
+    document.getElementById('connectBtn').innerText = "CONNECT WALLET";
+    const dot = document.getElementById('statusDot');
+    dot.classList.replace('bg-green-500', 'bg-red-500');
+    dot.classList.add('animate-pulse');
+    
+    document.getElementById('myScore').innerText = "0";
+    document.getElementById('myXP').innerText = "0";
+    document.getElementById('myBadge').innerText = "---";
+
+    addLog("Wallet session cleared.", "text-yellow-500");
 }
 
 /**
@@ -86,6 +114,7 @@ async function updateStats() {
         addLog("Sync Complete.", "text-gray-500");
     } catch (err) {
         addLog("Blockchain Read Error.", "text-red-400");
+        console.error(err);
     }
 }
 
@@ -114,7 +143,7 @@ async function submitScore() {
 }
 
 // Event Listeners
-document.getElementById('connectBtn').addEventListener('click', connect);
+document.getElementById('connectBtn').addEventListener('click', handleWalletAction);
 document.getElementById('submitBtn').addEventListener('click', submitScore);
 
 // Check if already connected on load
@@ -123,7 +152,7 @@ window.addEventListener('load', async () => {
         const accounts = await window.ethereum.request({ method: 'eth_accounts' });
         if (accounts.length > 0) {
             addLog("Existing session detected. Resuming...", "text-cyan-500");
-            connect();
+            handleWalletAction();
         }
     }
 });
