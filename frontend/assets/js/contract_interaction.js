@@ -18,89 +18,79 @@ function addLog(msg, color = "text-gray-400") {
 }
 
 /**
- * Handles Connect and Disconnect Logic
+ * Main Wallet Controller: Handles Connect & Disconnect
  */
-async function handleWalletAction() {
-    const connectBtn = document.getElementById('connectBtn');
-    
-    // If already connected, perform Disconnect
+async function toggleWallet() {
+    // If already connected, act as Disconnect button
     if (signer) {
-        disconnect();
+        disconnectWallet();
         return;
     }
 
     if (typeof window.ethereum === 'undefined') {
-        addLog("Critical: MetaMask not detected!", "text-red-500");
-        alert("Please install MetaMask extension to play.");
+        addLog("MetaMask not detected!", "text-red-500");
         return;
     }
 
     try {
-        addLog("Initializing secure handshake...", "text-yellow-400");
+        addLog("Requesting secure connection...", "text-yellow-400");
         
-        const accounts = await window.ethereum.request({ 
-            method: 'wallet_requestPermissions', 
-            params: [{ eth_accounts: {} }] 
-        });
-
-        if (accounts) {
+        // Request account access
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        
+        if (accounts.length > 0) {
             provider = new ethers.BrowserProvider(window.ethereum);
             signer = await provider.getSigner();
             const address = await signer.getAddress();
             
-            // Update UI
+            // Update UI Button with shortened address
             const displayAddr = `${address.substring(0, 6)}...${address.substring(38)}`;
-            connectBtn.innerText = displayAddr;
+            document.getElementById('connectBtn').innerText = displayAddr;
             
+            // Status Indicator
             const dot = document.getElementById('statusDot');
-            dot.classList.replace('bg-red-500', 'bg-green-500');
-            dot.classList.remove('animate-pulse');
+            if(dot) dot.classList.replace('bg-red-500', 'bg-green-500');
 
             contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
             
-            addLog("Authorization Successful: " + address.substring(0, 10), "text-green-400");
+            addLog("Connected: " + address.substring(0, 10), "text-green-400");
             updateStats();
         }
     } catch (error) {
-        if (error.code === 4001) {
-            addLog("User rejected the connection request.", "text-pink-500");
-        } else {
-            addLog("Connection Error: " + error.code, "text-red-500");
-            console.error(error);
-        }
+        addLog("Connection Failed.", "text-red-500");
+        console.error(error);
     }
 }
 
 /**
- * Resets Wallet State in UI
+ * Resets the UI and clears the session
  */
-function disconnect() {
+function disconnectWallet() {
     signer = null;
-    provider = null;
     contract = null;
+    provider = null;
 
-    // Reset UI Elements
     document.getElementById('connectBtn').innerText = "CONNECT WALLET";
     const dot = document.getElementById('statusDot');
-    dot.classList.replace('bg-green-500', 'bg-red-500');
-    dot.classList.add('animate-pulse');
-    
+    if(dot) dot.classList.replace('bg-green-500', 'bg-red-500');
+
+    // Reset Stats UI
     document.getElementById('myScore').innerText = "0";
     document.getElementById('myXP').innerText = "0";
-    document.getElementById('myBadge').innerText = "---";
+    document.getElementById('myBadge').innerText = "UNRANKED";
 
-    addLog("Wallet session cleared.", "text-yellow-500");
+    addLog("Wallet disconnected successfully.", "text-yellow-500");
 }
 
 /**
- * Update UI with Blockchain Data
+ * Fetches data from GenLayer Smart Contract
  */
 async function updateStats() {
     if (!contract || !signer) return;
     
     try {
         const address = await signer.getAddress();
-        addLog("Syncing with GenLayer nodes...", "text-cyan-600");
+        addLog("Fetching on-chain profile...", "text-cyan-500");
         
         const stats = await contract.get_my_stats(address);
         document.getElementById('myScore').innerText = stats[0].toString();
@@ -111,48 +101,39 @@ async function updateStats() {
         document.getElementById('topScore').innerText = world[1].toString();
         document.getElementById('topAddress').innerText = world[0].toLowerCase();
         
-        addLog("Sync Complete.", "text-gray-500");
+        addLog("Profile Synced.", "text-green-400");
     } catch (err) {
-        addLog("Blockchain Read Error.", "text-red-400");
+        // This handles the "Blockchain Read Error" seen in your screenshot
+        addLog("Sync Error: Check if you are on GenLayer Testnet.", "text-pink-400");
         console.error(err);
     }
 }
 
 /**
- * Handle Transaction Submission
+ * Submits score to the blockchain
  */
 async function submitScore() {
-    const finalScore = document.getElementById('currentSessionScore').innerText;
+    const scoreElement = document.getElementById('currentSessionScore');
+    const finalScore = scoreElement ? scoreElement.innerText : "0";
     
     if (!contract || finalScore === "0") {
-        addLog("Action Denied: Connect wallet and finish a race.", "text-red-500");
+        addLog("Transaction Blocked: Earn points first!", "text-red-400");
         return;
     }
 
     try {
-        addLog("Broadcasting score to GenLayer...", "text-yellow-400");
+        addLog("Initiating GenLayer transaction...", "text-yellow-400");
         const tx = await contract.race_and_compete(finalScore);
-        addLog("TX Pending: " + tx.hash.substring(0, 12), "text-cyan-500");
+        addLog("TX Hash: " + tx.hash.substring(0, 10), "text-cyan-400");
         
         await tx.wait();
-        addLog("Score permanently recorded on-chain!", "text-green-500");
+        addLog("Score secured on blockchain!", "text-green-500");
         updateStats();
     } catch (err) {
-        addLog("Transaction failed or cancelled.", "text-red-500");
+        addLog("Transaction failed.", "text-red-500");
     }
 }
 
-// Event Listeners
-document.getElementById('connectBtn').addEventListener('click', handleWalletAction);
+// Attach Listeners
+document.getElementById('connectBtn').addEventListener('click', toggleWallet);
 document.getElementById('submitBtn').addEventListener('click', submitScore);
-
-// Check if already connected on load
-window.addEventListener('load', async () => {
-    if (window.ethereum) {
-        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-        if (accounts.length > 0) {
-            addLog("Existing session detected. Resuming...", "text-cyan-500");
-            handleWalletAction();
-        }
-    }
-});
