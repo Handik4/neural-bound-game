@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RetroRacer | GenLayer Edition</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <div class="max-w-5xl mx-auto">
+        <header class="flex justify-between items-center mb-12 border-b border-cyan-400/20 pb-6">
+            <div class="header-main">
+                <h1 class="text-4xl font-bold text-cyan-400 tracking-widest uppercase" style="text-shadow: 0 0 10px #00fff2;">
+                    RetroRacer
+                </h1>
+                <p class="text-cyan-400 text-sm tracking-widest opacity-80">GENLAYER PROTOCOL SIMULATOR</p>
+            </div>
+            
+            <div id="statusIndicator" class="flex items-center gap-3">
+                <div class="flex items-center gap-2 bg-black/40 px-4 py-2 rounded-full border border-white/5">
+                    <span id="statusDot" class="w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
+                    <button id="connectBtn" class="text-cyan-400 text-xs font-bold tracking-tighter uppercase hover:text-white transition-colors">
+                        CONNECT WALLET
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <aside class="lg:col-span-1 space-y-6">
+                <div class="cyber-card p-6 rounded-2xl">
+                    <h2 class="text-sm mb-4 text-pink-500 font-bold tracking-widest uppercase">/PLAYER_PROFILE</h2>
+                    <div class="space-y-4 text-lg font-medium">
+                        <div class="flex justify-between border-b border-white/5 pb-2">
+                            <span class="text-gray-400">High Score:</span>
+                            <span id="myScore" class="font-bold text-cyan-400">0</span>
+                        </div>
+                        <div class="flex justify-between border-b border-white/5 pb-2">
+                            <span class="text-gray-400">Total XP:</span>
+                            <span id="myXP" class="font-bold text-yellow-400">0</span>
+                        </div>
+                        <div class="flex justify-between border-b border-white/5 pb-2">
+                            <span class="text-gray-400">Rank:</span>
+                            <span id="myBadge" class="font-bold text-pink-500">UNRANKED</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cyber-card p-6 rounded-2xl border-yellow-500/30">
+                    <h2 class="text-sm mb-4 text-yellow-500 font-bold tracking-widest uppercase">/WORLD_CHAMPION</h2>
+                    <div class="text-center py-2">
+                        <p id="topScore" class="text-6xl font-bold text-white mb-2 tracking-tighter">0</p>
+                        <p id="topAddress" class="text-[10px] text-gray-500 font-mono truncate px-4">0x0000...0000</p>
+                    </div>
+                </div>
+            </aside>
+
+            <main class="lg:col-span-2 space-y-6">
+                
+                <div id="game-container" class="relative group">
+                    <canvas id="gameCanvas"></canvas>
+                    <div id="msg-overlay" class="rounded-xl">
+                        <p id="overlay-text" class="mb-4">SYSTEM READY</p>
+                        <button id="start-btn" class="game-btn">INITIALIZE ENGINE</button>
+                    </div>
+                </div>
+
+                <div class="cyber-card p-6 rounded-3xl">
+                    <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div class="text-center md:text-left">
+                            <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Session Performance</h2>
+                            <div class="flex items-baseline gap-2">
+                                <span id="currentSessionScore" class="text-5xl font-bold text-cyan-400">0</span>
+                                <span class="text-cyan-900 text-xs font-bold">PTS</span>
+                            </div>
+                        </div>
+                        
+                        <button id="submitBtn" class="group relative px-8 py-5 bg-cyan-500 overflow-hidden rounded-xl transition-all hover:scale-105 active:scale-95">
+                            <span class="relative z-10 text-black font-black text-lg tracking-tighter uppercase">Sync to GenLayer</span>
+                            <div class="absolute inset-0 bg-gradient-to-r from-cyan-400 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-black/80 p-5 rounded-xl border border-white/5 h-32 overflow-y-auto shadow-inner">
+                    <div id="log" class="space-y-1 font-mono text-[11px] leading-relaxed">
+                        <p class="text-cyan-600/50">> KERNEL: System status nominal...</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="assets/js/contract_interaction.js"></script>
+    <script src="assets/js/game.js"></script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+/* RETRO RACER - CYBERPUNK THEME */
+
+/* Root Reset & Background */
+body {
+    background: radial-gradient(circle at center, #0a0a14 0%, #050508 100%) !important;
+    background-color: #050508 !important;
+    color: #e2e2e2;
+    margin: 0;
+    min-height: 100vh;
+    font-family: 'Rajdhani', sans-serif;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Glassmorphism Card Style */
+.cyber-card {
+    background: rgba(20, 20, 35, 0.6);
+    backdrop-filter: blur(10px);
+    border-radius: 1rem;
+    border: 1px solid rgba(0, 242, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+.cyber-card:hover {
+    border-color: rgba(0, 242, 255, 0.3);
+    box-shadow: 0 0 20px rgba(0, 242, 255, 0.05);
+}
+
+/* Game Engine Container */
+#game-container {
+    position: relative;
+    width: 100%;
+    height: 350px;
+    background: #000;
+    border-radius: 15px;
+    border: 2px solid rgba(0, 242, 255, 0.2);
+    overflow: hidden;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 1);
+}
+
+/* Canvas Display */
+canvas { 
+    display: block; 
+    width: 100%; 
+    height: 100%; 
+}
+
+/* Game Interface Overlay */
+#msg-overlay {
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center;
+    font-size: 24px; 
+    color: #00f2ff; 
+    font-family: 'Orbitron', sans-serif;
+    z-index: 50;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+/* UI Buttons */
+.game-btn {
+    margin-top: 15px; 
+    padding: 12px 30px; 
+    background: #ff0055; 
+    color: #ffffff;
+    border: none; 
+    border-radius: 5px; 
+    cursor: pointer; 
+    font-weight: bold;
+    font-family: 'Orbitron', sans-serif;
+    box-shadow: 0 0 15px rgba(255, 0, 85, 0.4); 
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.game-btn:hover { 
+    transform: scale(1.05); 
+    box-shadow: 0 0 25px #ff0055;
+    background: #ff1a6b;
+}
+
+.game-btn:active {
+    transform: scale(0.95);
+}
+
+/* Scrollbar Styling for Logs */
+#log::-webkit-scrollbar {
+    width: 4px;
+}
+
+#log::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+#log::-webkit-scrollbar-thumb {
+    background: #1e1e2e;
+    border-radius: 10px;
+}
+
+#log::-webkit-scrollbar-thumb:hover {
+    background: #00f2ff;
+}
