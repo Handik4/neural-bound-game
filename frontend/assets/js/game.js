@@ -2,7 +2,8 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 // --- GenLayer Configuration ---
-const CONTRACT_ADDRESS = "0x_YOUR_CONTRACT_ADDRESS_HERE"; 
+// PASTE YOUR DEPLOYED CONTRACT ADDRESS BELOW
+const CONTRACT_ADDRESS = "0xa5Bd5845aa80AF1fB73bCeEc9b044D51aE4D4E32"; 
 const ADMIN_KEY = "Moltaphet98$";
 
 let userAddress = null;
@@ -14,7 +15,7 @@ const livesCont = document.getElementById("livesCont");
 const birdSVG = new Image();
 birdSVG.src = 'assets/js/balloon-svgrepo-com.svg'; 
 const bgImg = new Image();
-bgImg.src = 'assets/js/theme.jpg'; 
+bgImg.src = 'assets/js/background.jpg'; // Fixed to match your HTML background asset
 
 const GRAVITY = 0.14;       
 const JUMP = -3.4;          
@@ -39,7 +40,7 @@ async function syncScoreToGenLayer(finalScore) {
     try {
         console.log("Fetching Leaderboard from Blockchain...");
         
-        // 1. Get current leaderboard state
+        // 1. Get current leaderboard state using GenLayer SDK
         const stats = await window.genlayer.readContract({
             address: CONTRACT_ADDRESS,
             method: 'get_full_stats',
