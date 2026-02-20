@@ -2,9 +2,9 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 // --- GenLayer Configuration ---
-// PASTE YOUR DEPLOYED CONTRACT ADDRESS BELOW
 const CONTRACT_ADDRESS = "0xa5Bd5845aa80AF1fB73bCeEc9b044D51aE4D4E32"; 
 const ADMIN_KEY = "Moltaphet98$";
+const WAGER_AMOUNT = "0.001"; // Amount in ETH/GEN to play
 
 let userAddress = null;
 const walletBtn = document.getElementById("walletBtn");
@@ -15,7 +15,7 @@ const livesCont = document.getElementById("livesCont");
 const birdSVG = new Image();
 birdSVG.src = 'assets/js/balloon-svgrepo-com.svg'; 
 const bgImg = new Image();
-bgImg.src = 'assets/js/background.jpg'; // Fixed to match your HTML background asset
+bgImg.src = 'assets/js/background.jpg'; 
 
 const GRAVITY = 0.14;       
 const JUMP = -3.4;          
@@ -36,18 +36,14 @@ let frameCount = 0;
 
 async function syncScoreToGenLayer(finalScore) {
     if (!userAddress) return;
-    
     try {
         console.log("Fetching Leaderboard from Blockchain...");
-        
-        // 1. Get current leaderboard state using GenLayer SDK
         const stats = await window.genlayer.readContract({
             address: CONTRACT_ADDRESS,
             method: 'get_full_stats',
             args: []
         });
 
-        // 2. Parse scores to find the correct slot
         const s1 = parseInt(stats.top1.split(': ')[1]) || 0;
         const s2 = parseInt(stats.top2.split(': ')[1]) || 0;
         const s3 = parseInt(stats.top3.split(': ')[1]) || 0;
@@ -57,11 +53,8 @@ async function syncScoreToGenLayer(finalScore) {
         else if (finalScore > s2) targetSlot = 2;
         else if (finalScore > s3) targetSlot = 3;
 
-        // 3. Send transaction if it's a new record
         if (targetSlot > 0) {
-            console.log(`New High Score! Updating Slot ${targetSlot}...`);
             const name = userAddress.substring(0, 6);
-            
             await window.genlayer.writeContract({
                 address: CONTRACT_ADDRESS,
                 method: 'update_leaderboard',
@@ -79,11 +72,7 @@ async function syncScoreToGenLayer(finalScore) {
 function updateLivesUI() {
     let html = "";
     for (let i = 0; i < 3; i++) {
-        if (i < lives) {
-            html += `<img src="assets/js/heart-full.svg" class="w-5 h-5 heart-glow">`;
-        } else {
-            html += `<img src="assets/js/heart-empty.svg" class="w-5 h-5 opacity-30">`;
-        }
+        html += i < lives ? `<img src="assets/js/heart-full.svg" class="w-5 h-5 heart-glow">` : `<img src="assets/js/heart-empty.svg" class="w-5 h-5 opacity-30">`;
     }
     livesCont.innerHTML = html;
 }
@@ -100,12 +89,49 @@ function resetGame(fullReset = true) {
     updateLivesUI();
 }
 
-document.getElementById("startBtn").onclick = (e) => {
+// --- Modified Start Logic with Payment ---
+document.getElementById("startBtn").onclick = async (e) => {
     e.stopPropagation();
-    if (lives <= 0) resetGame(true);
-    else resetGame(false);
-    gameActive = true;
-    document.getElementById("overlay").style.display = "none";
+    
+    if (!userAddress) {
+        alert("Please connect your wallet first!");
+        await connectWallet();
+        return;
+    }
+
+    try {
+        const btn = document.getElementById("startBtn");
+        const originalText = btn.innerText;
+        btn.innerText = "AUTHORIZING...";
+        btn.disabled = true;
+
+        // Payment Transaction
+        const txParams = {
+            to: CONTRACT_ADDRESS,
+            from: userAddress,
+            value: (parseFloat(WAGER_AMOUNT) * 1e18).toString(16), 
+        };
+
+        await window.ethereum.request({
+            method: 'eth_sendTransaction',
+            params: [txParams],
+        });
+
+        // If transaction succeeds:
+        btn.disabled = false;
+        btn.innerText = originalText;
+        
+        if (lives <= 0) resetGame(true);
+        else resetGame(false);
+        gameActive = true;
+        document.getElementById("overlay").style.display = "none";
+
+    } catch (err) {
+        console.error("Transaction failed", err);
+        alert("Payment required to start the engine!");
+        document.getElementById("startBtn").innerText = "Execute Run";
+        document.getElementById("startBtn").disabled = false;
+    }
 };
 
 // --- Wallet & History ---
@@ -162,7 +188,6 @@ function update() {
     if (!gameActive) return;
     bird.velocity += GRAVITY;
     bird.y += bird.velocity;
-
     if (bird.y + bird.h > canvas.height || bird.y < 0) gameOver();
 
     if (frameCount % PIPE_SPAWN_RATE === 0) {
@@ -177,7 +202,6 @@ function update() {
         p.x -= PIPE_SPEED;
         if (bird.x < p.x + PIPE_WIDTH && bird.x + bird.w > p.x && 
            (bird.y < p.y || bird.y + bird.h > p.y + PIPE_GAP)) gameOver();
-
         if (!p.passed && bird.x > p.x + PIPE_WIDTH) {
             score++; p.passed = true;
             document.getElementById("scoreVal").innerText = score;
@@ -212,7 +236,6 @@ function gameOver() {
     gameActive = false;
     lives--;
     updateLivesUI();
-
     if (lives > 0) {
         document.getElementById("overlay").style.display = "flex";
         document.getElementById("msg").innerText = `SYSTEM DAMAGED - ${lives} SHIELDS REMAINING`;
@@ -223,10 +246,7 @@ function gameOver() {
             document.getElementById("bestVal").innerText = bestScore;
         }
         saveToHistory(score);
-        
-        // Sync score with Blockchain
         syncScoreToGenLayer(score);
-
         document.getElementById("overlay").style.display = "flex";
         document.getElementById("msg").innerText = "CRITICAL FAILURE - ALL SHIELDS LOST";
         document.getElementById("startBtn").innerText = "NEW EXECUTION";
