@@ -1,6 +1,10 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+// --- GenLayer Configuration ---
+const CONTRACT_ADDRESS = "0x_YOUR_CONTRACT_ADDRESS_HERE"; 
+const ADMIN_KEY = "Moltaphet98$";
+
 let userAddress = null;
 const walletBtn = document.getElementById("walletBtn");
 const historyContainer = document.getElementById("historyContainer");
@@ -26,6 +30,50 @@ let bestScore = 0;
 let lives = 3;
 let gameActive = false;
 let frameCount = 0;
+
+// --- GenLayer Integration Logic ---
+
+async function syncScoreToGenLayer(finalScore) {
+    if (!userAddress) return;
+    
+    try {
+        console.log("Fetching Leaderboard from Blockchain...");
+        
+        // 1. Get current leaderboard state
+        const stats = await window.genlayer.readContract({
+            address: CONTRACT_ADDRESS,
+            method: 'get_full_stats',
+            args: []
+        });
+
+        // 2. Parse scores to find the correct slot
+        const s1 = parseInt(stats.top1.split(': ')[1]) || 0;
+        const s2 = parseInt(stats.top2.split(': ')[1]) || 0;
+        const s3 = parseInt(stats.top3.split(': ')[1]) || 0;
+
+        let targetSlot = 0;
+        if (finalScore > s1) targetSlot = 1;
+        else if (finalScore > s2) targetSlot = 2;
+        else if (finalScore > s3) targetSlot = 3;
+
+        // 3. Send transaction if it's a new record
+        if (targetSlot > 0) {
+            console.log(`New High Score! Updating Slot ${targetSlot}...`);
+            const name = userAddress.substring(0, 6);
+            
+            await window.genlayer.writeContract({
+                address: CONTRACT_ADDRESS,
+                method: 'update_leaderboard',
+                args: [targetSlot, name, finalScore, ADMIN_KEY]
+            });
+            console.log("Blockchain Sync Complete!");
+        }
+    } catch (err) {
+        console.error("Sync Error:", err);
+    }
+}
+
+// --- Game Functions ---
 
 function updateLivesUI() {
     let html = "";
@@ -54,7 +102,7 @@ function resetGame(fullReset = true) {
 document.getElementById("startBtn").onclick = (e) => {
     e.stopPropagation();
     if (lives <= 0) resetGame(true);
-    else resetGame(false); // Resume with current score
+    else resetGame(false);
     gameActive = true;
     document.getElementById("overlay").style.display = "none";
 };
@@ -174,6 +222,10 @@ function gameOver() {
             document.getElementById("bestVal").innerText = bestScore;
         }
         saveToHistory(score);
+        
+        // Sync score with Blockchain
+        syncScoreToGenLayer(score);
+
         document.getElementById("overlay").style.display = "flex";
         document.getElementById("msg").innerText = "CRITICAL FAILURE - ALL SHIELDS LOST";
         document.getElementById("startBtn").innerText = "NEW EXECUTION";
