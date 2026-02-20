@@ -1,94 +1,185 @@
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-// Game State
-let game = {
-    active: false,
-    score: 0,
-    speed: 0,
-    playerX: 300,
-    targetX: 300,
-    roadOff: 0
-};
+let userAddress = null;
+const walletBtn = document.getElementById("walletBtn");
+const historyContainer = document.getElementById("historyContainer");
+const historyList = document.getElementById("historyList");
+const livesCont = document.getElementById("livesCont");
 
-// Start Game Logic
-const startBtn = document.getElementById('start-btn');
-const msgOverlay = document.getElementById('msg-overlay');
-const sessionScoreDisplay = document.getElementById('currentSessionScore');
+const birdSVG = new Image();
+birdSVG.src = 'assets/js/balloon-svgrepo-com.svg'; 
+const bgImg = new Image();
+bgImg.src = 'assets/js/theme.jpg'; 
 
-if (startBtn) {
-    startBtn.onclick = function() {
-        game.active = true;
-        game.score = 0;
-        game.speed = 2;
-        if (msgOverlay) msgOverlay.style.display = 'none';
-        
-        // Use the addLog function from contract_interaction.js if available
-        if (typeof addLog === 'function') {
-            addLog("Race started!", "text-cyan-400");
-        }
-    };
-}
+const GRAVITY = 0.14;       
+const JUMP = -3.4;          
+const PIPE_SPEED = 1.1;     
+const PIPE_GAP = 195;       
+const PIPE_WIDTH = 55;
+const PIPE_SPAWN_RATE = 160; 
 
-// Controls
-window.onkeydown = function(e) {
-    if (e.key === 'ArrowLeft' || e.key === 'a') game.targetX -= 50;
-    if (e.key === 'ArrowRight' || e.key === 'd') game.targetX += 50;
-    
-    // Boundary check to keep car on screen
-    if (game.targetX < 50) game.targetX = 50;
-    if (game.targetX > 550) game.targetX = 550;
-};
+let bird = { x: 50, y: 150, w: 50, h: 50, velocity: 0 };
+let pipes = [];
+let score = 0;
+let bestScore = 0;
+let lives = 3;
+let gameActive = false;
+let frameCount = 0;
 
-// Main Animation Loop
-function loop() {
-    ctx.clearRect(0, 0, 600, 400);
-    
-    // Smooth player movement
-    game.playerX += (game.targetX - game.playerX) * 0.15;
-
-    // Background (Sky/Space)
-    ctx.fillStyle = "#111"; 
-    ctx.fillRect(0, 0, 600, 400);
-
-    // Road Projection
-    ctx.fillStyle = "#222"; 
-    ctx.beginPath();
-    ctx.moveTo(280, 200); 
-    ctx.lineTo(320, 200); 
-    ctx.lineTo(600, 400); 
-    ctx.lineTo(0, 400); 
-    ctx.fill();
-
-    if (game.active) {
-        // Road animation
-        game.roadOff += 10;
-        if (game.roadOff > 40) game.roadOff = 0;
-        
-        ctx.strokeStyle = "#fff"; 
-        ctx.setLineDash([20, 20]);
-        ctx.lineDashOffset = -game.roadOff;
-        ctx.beginPath(); 
-        ctx.moveTo(300, 200); 
-        ctx.lineTo(300, 400); 
-        ctx.stroke();
-        
-        // Score logic
-        game.score++;
-        if (sessionScoreDisplay) {
-            sessionScoreDisplay.innerText = game.score;
+function updateLivesUI() {
+    let html = "";
+    for (let i = 0; i < 3; i++) {
+        if (i < lives) {
+            html += `<img src="assets/js/heart-full.svg" class="w-5 h-5 heart-glow">`;
+        } else {
+            html += `<img src="assets/js/heart-empty.svg" class="w-5 h-5 opacity-30">`;
         }
     }
-
-    // Draw Car (Cyberpunk Cyan)
-    ctx.fillStyle = "#0ff";
-    ctx.shadowBlur = 15;
-    ctx.shadowColor = "#0ff";
-    ctx.fillRect(game.playerX - 20, 340, 40, 25);
-    ctx.shadowBlur = 0;
-
-    requestAnimationFrame(loop);
+    livesCont.innerHTML = html;
 }
 
-// Initialize Loop
-loop();
+function resetGame(fullReset = true) {
+    bird = { x: 50, y: 150, w: 50, h: 50, velocity: 0 };
+    pipes = [];
+    frameCount = 0;
+    if (fullReset) {
+        score = 0;
+        lives = 3;
+        document.getElementById("scoreVal").innerText = "0";
+    }
+    updateLivesUI();
+}
+
+document.getElementById("startBtn").onclick = (e) => {
+    e.stopPropagation();
+    if (lives <= 0) resetGame(true);
+    else resetGame(false); // Resume with current score
+    gameActive = true;
+    document.getElementById("overlay").style.display = "none";
+};
+
+// --- Wallet & History ---
+async function connectWallet() {
+    if (window.ethereum) {
+        try {
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            userAddress = accounts[0];
+            updateWalletUI();
+        } catch (err) { console.error(err); }
+    } else { alert("Install MetaMask!"); }
+}
+
+function updateWalletUI() {
+    if (userAddress) {
+        walletBtn.innerText = userAddress.substring(0,6) + "..." + userAddress.slice(-4);
+        historyContainer.classList.remove("hidden");
+        displayHistory();
+    } else {
+        walletBtn.innerText = "CONNECT_IDENTITY";
+        historyContainer.classList.add("hidden");
+    }
+}
+
+walletBtn.onclick = () => {
+    if (!userAddress) connectWallet();
+    else if(confirm("Disconnect Terminal?")) { userAddress = null; updateWalletUI(); }
+};
+
+function saveToHistory(s) {
+    if (!userAddress || s <= 0) return;
+    let h = JSON.parse(localStorage.getItem('genbound_' + userAddress)) || [];
+    h.unshift({ score: s, date: new Date().toLocaleTimeString() });
+    localStorage.setItem('genbound_' + userAddress, JSON.stringify(h.slice(0, 10)));
+    displayHistory();
+}
+
+function displayHistory() {
+    const history = JSON.parse(localStorage.getItem('genbound_' + userAddress)) || [];
+    historyList.innerHTML = history.map(i => `
+        <li class="flex justify-between border-b border-white/5 pb-1">
+            <span class="text-pink-500 font-bold">SCORE: ${i.score}</span>
+            <span class="text-gray-500 text-[9px]">${i.date}</span>
+        </li>
+    `).join('') || "No logs yet.";
+}
+
+// --- Engine ---
+function flap() { if (gameActive) bird.velocity = JUMP; }
+window.addEventListener("keydown", (e) => { if(e.code === "Space") flap(); });
+canvas.addEventListener("touchstart", (e) => { if(gameActive) { e.preventDefault(); flap(); } });
+
+function update() {
+    if (!gameActive) return;
+    bird.velocity += GRAVITY;
+    bird.y += bird.velocity;
+
+    if (bird.y + bird.h > canvas.height || bird.y < 0) gameOver();
+
+    if (frameCount % PIPE_SPAWN_RATE === 0) {
+        let minH = 50;
+        let maxH = canvas.height - PIPE_GAP - minH;
+        let topH = Math.floor(Math.random() * (maxH - minH + 1)) + minH;
+        pipes.push({ x: canvas.width, y: topH, passed: false });
+    }
+
+    for (let i = pipes.length - 1; i >= 0; i--) {
+        let p = pipes[i];
+        p.x -= PIPE_SPEED;
+        if (bird.x < p.x + PIPE_WIDTH && bird.x + bird.w > p.x && 
+           (bird.y < p.y || bird.y + bird.h > p.y + PIPE_GAP)) gameOver();
+
+        if (!p.passed && bird.x > p.x + PIPE_WIDTH) {
+            score++; p.passed = true;
+            document.getElementById("scoreVal").innerText = score;
+        }
+        if (p.x + PIPE_WIDTH < 0) pipes.splice(i, 1);
+    }
+    frameCount++;
+}
+
+function render() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (bgImg.complete) {
+        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+    }
+    pipes.forEach(p => {
+        ctx.strokeStyle = "#00fff2"; ctx.lineWidth = 2;
+        ctx.fillStyle = "rgba(0, 255, 242, 0.15)";
+        ctx.fillRect(p.x, 0, PIPE_WIDTH, p.y);
+        ctx.strokeRect(p.x, 0, PIPE_WIDTH, p.y);
+        ctx.fillRect(p.x, p.y + PIPE_GAP, PIPE_WIDTH, canvas.height);
+        ctx.strokeRect(p.x, p.y + PIPE_GAP, PIPE_WIDTH, canvas.height);
+    });
+    ctx.save();
+    ctx.translate(bird.x + bird.w/2, bird.y + bird.h/2);
+    ctx.rotate(bird.velocity * 0.1);
+    if (birdSVG.complete) ctx.drawImage(birdSVG, -bird.w/2, -bird.h/2, bird.w, bird.h);
+    ctx.restore();
+}
+
+function gameOver() {
+    gameActive = false;
+    lives--;
+    updateLivesUI();
+
+    if (lives > 0) {
+        document.getElementById("overlay").style.display = "flex";
+        document.getElementById("msg").innerText = `SYSTEM DAMAGED - ${lives} SHIELDS REMAINING`;
+        document.getElementById("startBtn").innerText = "REBOOT SYSTEM";
+    } else {
+        if (score > bestScore) {
+            bestScore = score;
+            document.getElementById("bestVal").innerText = bestScore;
+        }
+        saveToHistory(score);
+        document.getElementById("overlay").style.display = "flex";
+        document.getElementById("msg").innerText = "CRITICAL FAILURE - ALL SHIELDS LOST";
+        document.getElementById("startBtn").innerText = "NEW EXECUTION";
+    }
+}
+
+function gameLoop() { update(); render(); requestAnimationFrame(gameLoop); }
+updateLivesUI();
+gameLoop();
