@@ -1,7 +1,7 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// --- Configuration ---
+// Configuration
 const CONTRACT_ADDRESS = "0xa5Bd5845aa80AF1fB73bCeEc9b044D51aE4D4E32"; 
 const ADMIN_KEY = "Moltaphet98$";
 
@@ -20,32 +20,30 @@ let bird = { x: 50, y: 150, w: 50, h: 50, velocity: 0 };
 let pipes = []; let score = 0; let bestScore = 0; let lives = 3;
 let gameActive = false; let frameCount = 0;
 
-// --- UI Log Helper ---
-function updateExecutionLogs(text) {
+function addLog(text) {
     const li = document.createElement("li");
-    li.className = "border-l-2 border-cyan-500 pl-2 py-1 text-[9px] text-gray-400 bg-white/5";
     li.innerHTML = `<span class="text-cyan-600">[${new Date().toLocaleTimeString()}]</span> ${text}`;
-    if(historyList) historyList.prepend(li);
+    historyList.prepend(li);
 }
 
+// Blockchain: Only runs on Game Over
+async function syncToChain(finalScore) {
+    if (!userAddress || finalScore <= 0) return;
+    try {
+        addLog("Syncing score to GenLayer...");
+        await window.genlayer.writeContract({
+            address: CONTRACT_ADDRESS,
+            method: 'update_leaderboard',
+            args: [1, userAddress.substring(0, 6), finalScore, ADMIN_KEY]
+        });
+        addLog("Sync successful!");
+    } catch (err) { addLog("Sync failed: " + err.message); }
+}
 
-document.getElementById("startBtn").onclick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (lives <= 0) resetGame(true); 
-    else resetGame(false);
-    
-    gameActive = true;
-    document.getElementById("overlay").style.display = "none";
-    updateExecutionLogs("RUN_STARTED");
-};
-
-// --- Game Logic ---
 function updateLivesUI() {
     let html = "";
     for (let i = 0; i < 3; i++) {
-        html += i < lives ? `<img src="assets/js/heart-full.svg" class="w-5 h-5">` : `<img src="assets/js/heart-empty.svg" class="w-5 h-5 opacity-20">`;
+        html += i < lives ? `<span class="text-pink-500">❤</span>` : `<span class="text-gray-800">❤</span>`;
     }
     livesCont.innerHTML = html;
 }
@@ -57,23 +55,25 @@ function resetGame(fullReset = true) {
     updateLivesUI();
 }
 
-// --- Wallet Connection (ONLY IF USER CLICKS CONNECT) ---
+// START BUTTON - 100% CLEAN
+document.getElementById("startBtn").onclick = () => {
+    if (lives <= 0) resetGame(true); else resetGame(false);
+    gameActive = true;
+    document.getElementById("overlay").style.display = "none";
+    addLog("Run started.");
+};
+
 async function connectWallet() {
     if (window.ethereum) {
         try {
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             userAddress = accounts[0];
             walletBtn.innerText = userAddress.substring(0,6) + "...";
-            updateExecutionLogs("IDENTITY_LINKED");
-        } catch (err) { console.error("Connection Denied"); }
+            addLog("Identity linked.");
+        } catch (err) { console.error(err); }
     }
 }
-walletBtn.onclick = () => { if (!userAddress) connectWallet(); else { userAddress = null; walletBtn.innerText = "Connect_Identity"; } };
-
-// --- Engine ---
-function flap() { if (gameActive) bird.velocity = JUMP; }
-window.addEventListener("keydown", (e) => { if(e.code === "Space") flap(); });
-canvas.addEventListener("touchstart", (e) => { if(gameActive) { e.preventDefault(); flap(); } });
+walletBtn.onclick = () => { if (!userAddress) connectWallet(); else { userAddress = null; walletBtn.innerText = "Connect_Wallet"; } };
 
 function update() {
     if (!gameActive) return;
@@ -107,13 +107,10 @@ function gameOver() {
     gameActive = false; lives--; updateLivesUI();
     document.getElementById("overlay").style.display = "flex";
     if (lives <= 0) {
-        document.getElementById("msg").innerText = "CRITICAL FAILURE";
+        document.getElementById("msg").innerText = "Game Over";
+        syncToChain(score);
         if (score > bestScore) { bestScore = score; document.getElementById("bestVal").innerText = bestScore; }
-    
-        updateExecutionLogs("RUN_TERMINATED");
-    } else {
-        document.getElementById("msg").innerText = "SYSTEM DAMAGED";
-    }
+    } else { document.getElementById("msg").innerText = "Shield Damaged"; }
 }
 
 function gameLoop() { update(); render(); requestAnimationFrame(gameLoop); }
