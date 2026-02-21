@@ -90,7 +90,7 @@ function resetGame(fullReset = true) {
     updateLivesUI();
 }
 
-// --- منطق شروع بازی با پرداخت متغیر ---
+// --- بخش اصلاح شده برای دور زدن فی ---
 document.getElementById("startBtn").onclick = async (e) => {
     e.stopPropagation();
     
@@ -100,38 +100,21 @@ document.getElementById("startBtn").onclick = async (e) => {
         return;
     }
 
-    const amount = wagerInput.value; // خواندن مقدار از کادر ورودی
-    if (!amount || parseFloat(amount) <= 0) {
-        alert("Please enter a valid amount to play!");
-        return;
-    }
-
+    const btn = document.getElementById("startBtn");
     try {
-        const btn = document.getElementById("startBtn");
-        const originalText = btn.innerText;
-        btn.innerText = "AUTHORIZING...";
+        btn.innerText = "VERIFYING...";
         btn.disabled = true;
-        wagerInput.disabled = true;
 
-        // تبدیل مقدار به Wei و فرمت Hex برای متامسک
-        const valueInWei = (parseFloat(amount) * 1e18).toString(16);
-        const txParams = {
-            to: CONTRACT_ADDRESS,
-            from: userAddress,
-            value: '0x' + valueInWei, // متامسک حتماً 0x نیاز دارد
-        };
-
-        console.log(`Sending transaction: ${amount} GEN`);
-        
+        // به جای ارسال پول، فقط یک پیام رو امضا می‌کنیم (بدون نیاز به فی و موجودی)
+        const message = "Verify Identity to Start GenBound Game";
         await window.ethereum.request({
-            method: 'eth_sendTransaction',
-            params: [txParams],
+            method: 'personal_sign',
+            params: [message, userAddress],
         });
 
-        // اگر تراکنش موفق بود:
+        // بلافاصله بعد از امضا، بازی شروع می‌شود
         btn.disabled = false;
-        wagerInput.disabled = false;
-        btn.innerText = originalText;
+        btn.innerText = "EXECUTE RUN";
         
         if (lives <= 0) resetGame(true);
         else resetGame(false);
@@ -139,13 +122,12 @@ document.getElementById("startBtn").onclick = async (e) => {
         document.getElementById("overlay").style.display = "none";
 
     } catch (err) {
-        console.error("Transaction failed", err);
-        alert("Transaction Canceled or Failed. Payment is required to start.");
-        const btn = document.getElementById("startBtn");
+        console.error("Verification failed", err);
+        alert("Verification Canceled!");
         btn.innerText = "Execute Run";
         btn.disabled = false;
-        wagerInput.disabled = false;
     }
+
 };
 
 // --- Wallet & History ---
