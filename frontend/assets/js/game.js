@@ -89,7 +89,6 @@ function resetGame(fullReset = true) {
     updateLivesUI();
 }
 
-// --- Modified Start Logic with Payment ---
 document.getElementById("startBtn").onclick = async (e) => {
     e.stopPropagation();
     
@@ -102,22 +101,30 @@ document.getElementById("startBtn").onclick = async (e) => {
     try {
         const btn = document.getElementById("startBtn");
         const originalText = btn.innerText;
-        btn.innerText = "AUTHORIZING...";
+        btn.innerText = "WAITING FOR WALLET...";
         btn.disabled = true;
 
-        // Payment Transaction
+        // 1. Prepare transaction parameters
+        // تبدیل مقدار به هگزادسیمال برای متامسک
+        const valueInWei = (parseFloat(WAGER_AMOUNT) * 1e18).toString(16);
         const txParams = {
             to: CONTRACT_ADDRESS,
             from: userAddress,
-            value: (parseFloat(WAGER_AMOUNT) * 1e18).toString(16), 
+            value: '0x' + valueInWei, // متامسک حتما 0x اولش می‌خواد
         };
 
-        await window.ethereum.request({
+        console.log("Requesting payment via window.ethereum...");
+
+        // 2. Request Transaction
+        // استفاده از متد استاندارد متامسک
+        const txHash = await window.ethereum.request({
             method: 'eth_sendTransaction',
             params: [txParams],
         });
 
-        // If transaction succeeds:
+        console.log("Transaction Hash:", txHash);
+
+        // 3. Start Game after user approves
         btn.disabled = false;
         btn.innerText = originalText;
         
@@ -127,11 +134,13 @@ document.getElementById("startBtn").onclick = async (e) => {
         document.getElementById("overlay").style.display = "none";
 
     } catch (err) {
-        console.error("Transaction failed", err);
-        alert("Payment required to start the engine!");
+        console.error("Payment Error:", err);
+        // اگر کاربر تراکنش را رد کند (Cancel) یا پول نداشته باشد
+        alert("Transaction failed! You must pay " + WAGER_AMOUNT + " to start.");
         document.getElementById("startBtn").innerText = "Execute Run";
         document.getElementById("startBtn").disabled = false;
     }
+
 };
 
 // --- Wallet & History ---
