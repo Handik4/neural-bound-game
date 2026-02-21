@@ -28,48 +28,37 @@ function updateExecutionLogs(text) {
     historyList.prepend(li);
 }
 
-// --- Blockchain: Read Data ---
+// --- Blockchain: Fetch DB ---
 async function fetchBlockchainLogs() {
     try {
-        console.log("Status: Accessing GenLayer DB...");
         const stats = await window.genlayer.readContract({
             address: CONTRACT_ADDRESS,
             method: 'get_full_stats',
             args: []
         });
-
         historyList.innerHTML = "";
         if (stats) {
             Object.values(stats).forEach(logEntry => {
-                if (logEntry && logEntry !== "Empty") {
-                    updateExecutionLogs(`RECORD_FOUND: ${logEntry}`);
-                }
+                if (logEntry && logEntry !== "Empty") updateExecutionLogs(`RECORD: ${logEntry}`);
             });
         }
-    } catch (err) {
-        console.error("Fetch Error:", err);
-        updateExecutionLogs("DB_ERROR: SYNC_FAILED");
-    }
+    } catch (err) { console.error(err); }
 }
 
-// --- Blockchain: Write Data ---
+// --- Blockchain: Record Score (ONLY ON GAME OVER) ---
 async function recordLogOnChain(finalScore) {
     if (!userAddress || finalScore <= 0) return;
-    
     try {
-        updateExecutionLogs("Status: Transmitting Data...");
+        updateExecutionLogs("Status: Syncing to GenLayer...");
+        // این تنها جایی هست که ولت باز می‌شه، اونم فقط وقتی بازی تموم شد
         await window.genlayer.writeContract({
             address: CONTRACT_ADDRESS,
             method: 'update_leaderboard', 
             args: [1, userAddress.substring(0, 6), finalScore, ADMIN_KEY]
         });
-
-        updateExecutionLogs("Status: Commit_Success");
-        setTimeout(fetchBlockchainLogs, 2000); 
-    } catch (err) {
-        console.error("Chain Error:", err);
-        updateExecutionLogs("Chain_Error: Tx_Rejected");
-    }
+        updateExecutionLogs("Status: Sync Successful");
+        setTimeout(fetchBlockchainLogs, 1000);
+    } catch (err) { updateExecutionLogs("Chain_Error: Tx_Rejected"); }
 }
 
 // --- Game Logic ---
@@ -88,10 +77,13 @@ function resetGame(fullReset = true) {
     updateLivesUI();
 }
 
+// *** مهم: این دکمه دیگه هیچ کدی برای تراکنش یا AUTHORIZING نداره ***
 document.getElementById("startBtn").onclick = () => {
+    // بازی بلافاصله شروع می‌شه
     if (lives <= 0) resetGame(true); else resetGame(false);
     gameActive = true;
     document.getElementById("overlay").style.display = "none";
+    updateExecutionLogs("Engine_Initialized: Offline_Mode");
 };
 
 document.getElementById("refreshLogs").onclick = fetchBlockchainLogs;
@@ -102,12 +94,11 @@ async function connectWallet() {
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             userAddress = accounts[0];
             walletBtn.innerText = userAddress.substring(0,6) + "...";
-            updateExecutionLogs("Identity_Link_Established");
+            updateExecutionLogs("Identity_Linked");
             fetchBlockchainLogs();
         } catch (err) { console.error("Link Denied"); }
     }
 }
-
 walletBtn.onclick = () => { if (!userAddress) connectWallet(); else { userAddress = null; walletBtn.innerText = "Connect_Identity"; } };
 
 // --- Engine ---
@@ -148,12 +139,12 @@ function gameOver() {
     document.getElementById("overlay").style.display = "flex";
     if (lives <= 0) {
         document.getElementById("msg").innerText = "CRITICAL FAILURE";
-        updateExecutionLogs(`Run_End. Score: ${score}. Syncing...`);
-        recordLogOnChain(score);
+        updateExecutionLogs(`Session_End. Score: ${score}`);
+        // فقط اینجا تراکنش زده می‌شه اونم اگه کاربر ولت رو وصل کرده باشه
+        if(userAddress) recordLogOnChain(score);
         if (score > bestScore) { bestScore = score; document.getElementById("bestVal").innerText = bestScore; }
     } else {
         document.getElementById("msg").innerText = "SYSTEM DAMAGED";
-        updateExecutionLogs(`Shield_Down. Data_Loss_Imminent.`);
     }
 }
 
