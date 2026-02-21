@@ -8,6 +8,7 @@ const ADMIN_KEY = "Moltaphet98$";
 let userAddress = null;
 const walletBtn = document.getElementById("walletBtn");
 const livesCont = document.getElementById("livesCont");
+const historyList = document.getElementById("historyList");
 
 const birdSVG = new Image(); birdSVG.src = 'assets/js/balloon-svgrepo-com.svg'; 
 const bgImg = new Image(); bgImg.src = 'assets/js/background.jpg'; 
@@ -19,135 +20,113 @@ let bird = { x: 50, y: 150, w: 50, h: 50, velocity: 0 };
 let pipes = []; let score = 0; let bestScore = 0; let lives = 3;
 let gameActive = false; let frameCount = 0;
 
-// --- Smart Contract Sync (Only on Game Over & High Score) ---
-async function syncScoreToGenLayer(finalScore) {
-    if (!userAddress || finalScore <= 0) {
-        console.log("Sync skipped: No wallet connected or score is 0.");
-        return;
-    }
-    
+// --- UI Log Helper ---
+function updateExecutionLogs(text) {
+    const li = document.createElement("li");
+    li.className = "border-l-2 border-cyan-500 pl-2 py-1 text-[9px] text-gray-400 bg-white/5";
+    li.innerHTML = `<span class="text-cyan-600">[${new Date().toLocaleTimeString()}]</span> ${text}`;
+    historyList.prepend(li);
+}
+
+// --- Blockchain: Read Data ---
+async function fetchBlockchainLogs() {
     try {
-        console.log("Transmitting record to GenLayer...");
-        // Fetch current leaderboard stats to check slot
+        console.log("Status: Accessing GenLayer DB...");
         const stats = await window.genlayer.readContract({
             address: CONTRACT_ADDRESS,
             method: 'get_full_stats',
             args: []
         });
 
-        const s1 = stats && stats.top1 ? parseInt(stats.top1.split(': ')[1]) : 0;
-        const s2 = stats && stats.top2 ? parseInt(stats.top2.split(': ')[1]) : 0;
-        const s3 = stats && stats.top3 ? parseInt(stats.top3.split(': ')[1]) : 0;
-
-        let targetSlot = 0;
-        if (finalScore > s1) targetSlot = 1;
-        else if (finalScore > s2) targetSlot = 2;
-        else if (finalScore > s3) targetSlot = 3;
-
-        if (targetSlot > 0) {
-            await window.genlayer.writeContract({
-                address: CONTRACT_ADDRESS,
-                method: 'update_leaderboard',
-                args: [targetSlot, userAddress.substring(0, 6), finalScore, ADMIN_KEY]
+        historyList.innerHTML = "";
+        if (stats) {
+            Object.values(stats).forEach(logEntry => {
+                if (logEntry && logEntry !== "Empty") {
+                    updateExecutionLogs(`RECORD_FOUND: ${logEntry}`);
+                }
             });
-            console.log(`Success: Score saved to Slot ${targetSlot}`);
         }
-    } catch (err) { 
-        console.error("Blockchain Sync Failed:", err); 
+    } catch (err) {
+        console.error("Fetch Error:", err);
+        updateExecutionLogs("DB_ERROR: SYNC_FAILED");
     }
 }
 
-// --- UI & Game Logic ---
+// --- Blockchain: Write Data ---
+async function recordLogOnChain(finalScore) {
+    if (!userAddress || finalScore <= 0) return;
+    
+    try {
+        updateExecutionLogs("Status: Transmitting Data...");
+        await window.genlayer.writeContract({
+            address: CONTRACT_ADDRESS,
+            method: 'update_leaderboard', 
+            args: [1, userAddress.substring(0, 6), finalScore, ADMIN_KEY]
+        });
+
+        updateExecutionLogs("Status: Commit_Success");
+        setTimeout(fetchBlockchainLogs, 2000); 
+    } catch (err) {
+        console.error("Chain Error:", err);
+        updateExecutionLogs("Chain_Error: Tx_Rejected");
+    }
+}
+
+// --- Game Logic ---
 function updateLivesUI() {
     let html = "";
     for (let i = 0; i < 3; i++) {
-        html += i < lives ? `<img src="assets/js/heart-full.svg" class="w-5 h-5 heart-glow">` : `<img src="assets/js/heart-empty.svg" class="w-5 h-5 opacity-20">`;
+        html += i < lives ? `<img src="assets/js/heart-full.svg" class="w-5 h-5">` : `<img src="assets/js/heart-empty.svg" class="w-5 h-5 opacity-20">`;
     }
     livesCont.innerHTML = html;
 }
 
 function resetGame(fullReset = true) {
     bird = { x: 50, y: 150, w: 50, h: 50, velocity: 0 };
-    pipes = []; 
-    frameCount = 0;
-    if (fullReset) { 
-        score = 0; 
-        lives = 3; 
-        document.getElementById("scoreVal").innerText = "0"; 
-    }
+    pipes = []; frameCount = 0;
+    if (fullReset) { score = 0; lives = 3; document.getElementById("scoreVal").innerText = "0"; }
     updateLivesUI();
 }
 
-// --- Instant Start Logic ---
 document.getElementById("startBtn").onclick = () => {
-    if (lives <= 0) {
-        resetGame(true);
-    } else {
-        resetGame(false);
-    }
+    if (lives <= 0) resetGame(true); else resetGame(false);
     gameActive = true;
     document.getElementById("overlay").style.display = "none";
 };
 
-// --- Wallet Connection ---
+document.getElementById("refreshLogs").onclick = fetchBlockchainLogs;
+
 async function connectWallet() {
     if (window.ethereum) {
         try {
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             userAddress = accounts[0];
-            walletBtn.innerText = userAddress.substring(0,6) + "..." + userAddress.slice(-4);
-            // Show history container if needed
-            const hist = document.getElementById("historyContainer");
-            if(hist) hist.classList.remove("hidden");
-        } catch (err) { 
-            console.error("Wallet Connection Denied", err); 
-        }
-    } else { 
-        alert("Web3 Provider not detected. Please install MetaMask."); 
+            walletBtn.innerText = userAddress.substring(0,6) + "...";
+            updateExecutionLogs("Identity_Link_Established");
+            fetchBlockchainLogs();
+        } catch (err) { console.error("Link Denied"); }
     }
 }
 
-walletBtn.onclick = () => { 
-    if (!userAddress) connectWallet(); 
-    else { 
-        userAddress = null; 
-        walletBtn.innerText = "Connect_Identity"; 
-    } 
-};
+walletBtn.onclick = () => { if (!userAddress) connectWallet(); else { userAddress = null; walletBtn.innerText = "Connect_Identity"; } };
 
-// --- Core Engine ---
+// --- Engine ---
 function flap() { if (gameActive) bird.velocity = JUMP; }
 window.addEventListener("keydown", (e) => { if(e.code === "Space") flap(); });
 canvas.addEventListener("touchstart", (e) => { if(gameActive) { e.preventDefault(); flap(); } });
 
 function update() {
     if (!gameActive) return;
-    
-    bird.velocity += GRAVITY; 
-    bird.y += bird.velocity;
-    
+    bird.velocity += GRAVITY; bird.y += bird.velocity;
     if (bird.y + bird.h > canvas.height || bird.y < 0) gameOver();
-
     if (frameCount % PIPE_SPAWN_RATE === 0) {
         let topH = Math.floor(Math.random() * (canvas.height - PIPE_GAP - 100)) + 50;
         pipes.push({ x: canvas.width, y: topH, passed: false });
     }
-
     for (let i = pipes.length - 1; i >= 0; i--) {
         let p = pipes[i]; p.x -= PIPE_SPEED;
-        
-        // Collision detection
-        if (bird.x < p.x + PIPE_WIDTH && bird.x + bird.w > p.x && (bird.y < p.y || bird.y + bird.h > p.y + PIPE_GAP)) {
-            gameOver();
-        }
-        
-        // Scoring
-        if (!p.passed && bird.x > p.x + PIPE_WIDTH) { 
-            score++; 
-            p.passed = true; 
-            document.getElementById("scoreVal").innerText = score; 
-        }
-        
+        if (bird.x < p.x + PIPE_WIDTH && bird.x + bird.w > p.x && (bird.y < p.y || bird.y + bird.h > p.y + PIPE_GAP)) gameOver();
+        if (!p.passed && bird.x > p.x + PIPE_WIDTH) { score++; p.passed = true; document.getElementById("scoreVal").innerText = score; }
         if (p.x + PIPE_WIDTH < 0) pipes.splice(i, 1);
     }
     frameCount++;
@@ -156,42 +135,27 @@ function update() {
 function render() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (bgImg.complete) ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-    
     pipes.forEach(p => {
         ctx.fillStyle = "rgba(0, 255, 242, 0.2)";
         ctx.fillRect(p.x, 0, PIPE_WIDTH, p.y);
         ctx.fillRect(p.x, p.y + PIPE_GAP, PIPE_WIDTH, canvas.height);
     });
-    
     if (birdSVG.complete) ctx.drawImage(birdSVG, bird.x, bird.y, bird.w, bird.h);
 }
 
 function gameOver() {
-    gameActive = false; 
-    lives--; 
-    updateLivesUI();
-    
+    gameActive = false; lives--; updateLivesUI();
     document.getElementById("overlay").style.display = "flex";
-    
     if (lives <= 0) {
         document.getElementById("msg").innerText = "CRITICAL FAILURE";
-        if (score > bestScore) { 
-            bestScore = score; 
-            document.getElementById("bestVal").innerText = bestScore; 
-        }
-        // Attempt to sync score to blockchain when all lives are lost
-        syncScoreToGenLayer(score);
+        updateExecutionLogs(`Run_End. Score: ${score}. Syncing...`);
+        recordLogOnChain(score);
+        if (score > bestScore) { bestScore = score; document.getElementById("bestVal").innerText = bestScore; }
     } else {
         document.getElementById("msg").innerText = "SYSTEM DAMAGED";
+        updateExecutionLogs(`Shield_Down. Data_Loss_Imminent.`);
     }
 }
 
-function gameLoop() { 
-    update(); 
-    render(); 
-    requestAnimationFrame(gameLoop); 
-}
-
-// Start
-updateLivesUI(); 
-gameLoop();
+function gameLoop() { update(); render(); requestAnimationFrame(gameLoop); }
+updateLivesUI(); gameLoop();

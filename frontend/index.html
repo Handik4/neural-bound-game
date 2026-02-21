@@ -11,67 +11,36 @@
     
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --neon-cyan: #00fff2;
-            --neon-pink: #ff0055;
-        }
+        :root { --neon-cyan: #00fff2; --neon-pink: #ff0055; }
         body { 
             background: url('assets/js/background.jpg') no-repeat center center fixed; 
-            background-size: cover;
-            color: white; 
-            font-family: 'Rajdhani', sans-serif; 
-            overflow-x: hidden; 
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
+            background-size: cover; color: white; font-family: 'Rajdhani', sans-serif; 
+            overflow-x: hidden; margin: 0; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; min-height: 100vh;
         }
         body::before {
-            content: "";
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
+            content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.8) 100%);
             z-index: -1;
         }
         .orbitron { font-family: 'Orbitron', sans-serif; }
-        
-        canvas { 
-            border: 2px solid var(--neon-cyan); 
-            box-shadow: 0 0 20px rgba(0, 255, 242, 0.2); 
-            background: #000; 
-        }
+        canvas { border: 2px solid var(--neon-cyan); box-shadow: 0 0 20px rgba(0, 255, 242, 0.2); background: #000; }
         .cyber-panel { 
-            background: rgba(0, 5, 10, 0.8); 
-            border: 1px solid rgba(0, 255, 242, 0.3); 
-            backdrop-filter: blur(10px); 
-            box-shadow: inset 0 0 15px rgba(0, 255, 242, 0.1);
+            background: rgba(0, 5, 10, 0.8); border: 1px solid rgba(0, 255, 242, 0.3); 
+            backdrop-filter: blur(10px); box-shadow: inset 0 0 15px rgba(0, 255, 242, 0.1);
         }
         #overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            background: rgba(0, 0, 0, 0.85);
-            z-index: 50;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(0, 0, 0, 0.85); z-index: 50;
         }
         .btn-neon {
-            background: transparent;
-            border: 1px solid var(--neon-cyan);
-            color: var(--neon-cyan);
-            transition: all 0.3s;
-            text-shadow: 0 0 5px var(--neon-cyan);
+            background: transparent; border: 1px solid var(--neon-cyan); color: var(--neon-cyan);
+            transition: all 0.3s; text-shadow: 0 0 5px var(--neon-cyan);
         }
-        .btn-neon:hover {
-            background: var(--neon-cyan);
-            color: black;
-            box-shadow: 0 0 20px var(--neon-cyan);
-        }
-
+        .btn-neon:hover { background: var(--neon-cyan); color: black; box-shadow: 0 0 20px var(--neon-cyan); }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--neon-cyan); border-radius: 10px; }
-        
         .logo-glow { filter: drop-shadow(0 0 10px var(--neon-cyan)); }
     </style>
 </head>
@@ -86,7 +55,7 @@
                 </h1>
                 <div class="flex items-center gap-2 mt-2">
                     <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    <p class="text-[10px] text-gray-400 uppercase tracking-[0.3em] font-bold">Terminal Status: Online</p>
+                    <p class="text-[10px] text-gray-400 uppercase tracking-[0.3em] font-bold">Terminal: Online</p>
                 </div>
             </div>
         </div>
@@ -97,15 +66,13 @@
 
     <div class="relative mt-20">
         <canvas id="gameCanvas" width="360" height="640"></canvas>
-        
         <div id="overlay">
-            <div class="mb-10 text-center px-6">
+            <div class="mb-8 text-center px-6">
                 <p class="text-cyan-400 text-[10px] tracking-[0.5em] mb-2 uppercase font-bold">Neural Link Ready</p>
                 <h2 id="msg" class="orbitron text-2xl font-bold text-white tracking-widest uppercase">Initialize Engine</h2>
             </div>
-
-            <button id="startBtn" class="orbitron px-12 py-4 btn-neon font-bold uppercase cursor-pointer tracking-widest">
-                Execute Run
+            <button id="startBtn" class="orbitron px-12 py-4 btn-neon font-bold uppercase cursor-pointer">
+                Execute_Run
             </button>
         </div>
     </div>
@@ -113,27 +80,25 @@
     <div class="flex flex-col gap-4 mt-8 w-full max-w-[360px]">
         <div class="cyber-panel p-4 rounded-lg flex justify-around items-center">
             <div class="text-center border-r border-white/10 pr-4">
-                <p class="text-gray-500 text-[9px] uppercase tracking-tighter font-bold mb-1">Integrity</p>
-                <div id="livesCont" class="flex gap-1 justify-center">
-                    </div>
+                <p class="text-gray-500 text-[9px] uppercase font-bold mb-1">Integrity</p>
+                <div id="livesCont" class="flex gap-1 justify-center"></div>
             </div>
-
             <div class="text-center">
-                <p class="text-gray-500 text-[9px] uppercase tracking-tighter font-bold">Current Score</p>
+                <p class="text-gray-500 text-[9px] uppercase font-bold">Session_Score</p>
                 <span id="scoreVal" class="orbitron text-2xl text-cyan-400">0</span>
             </div>
             <div class="text-center">
-                <p class="text-gray-500 text-[9px] uppercase tracking-tighter font-bold">Peak Record</p>
+                <p class="text-gray-500 text-[9px] uppercase font-bold">Global_Peak</p>
                 <span id="bestVal" class="orbitron text-2xl text-pink-500">0</span>
             </div>
         </div>
 
-        <div id="historyContainer" class="cyber-panel p-4 rounded-lg hidden">
+        <div id="historyContainer" class="cyber-panel p-4 rounded-lg">
             <div class="flex justify-between items-center mb-3 border-b border-cyan-900 pb-2">
-                <p class="text-[10px] text-cyan-400 orbitron uppercase tracking-widest font-bold">Execution Logs</p>
-                <span class="text-[8px] text-gray-500">STU_NET_V1</span>
+                <p class="text-[10px] text-cyan-400 orbitron uppercase tracking-widest font-bold">On-Chain Execution Logs</p>
+                <button id="refreshLogs" class="text-[8px] text-pink-500 hover:text-white transition-colors">REFRESH_DB</button>
             </div>
-            <ul id="historyList" class="text-[11px] space-y-2 max-h-32 overflow-y-auto pr-2 custom-scrollbar"></ul>
+            <ul id="historyList" class="text-[11px] space-y-2 max-h-32 overflow-y-auto pr-2 custom-scrollbar font-mono uppercase"></ul>
         </div>
     </div>
 
